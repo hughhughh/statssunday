@@ -22,6 +22,7 @@ export function StudySession({ set }: StudySessionProps) {
   const [showSection, setShowSection] = useState(false);
   const [flipped, setFlipped] = useState(false);
   const [state, setState] = useState<DeckState | null>(null);
+  const [hydratedKey, setHydratedKey] = useState<string | null>(null);
 
   const filtered = useMemo(
     () =>
@@ -37,14 +38,16 @@ export function StudySession({ set }: StudySessionProps) {
     // localStorage is the source of truth for ratings/history after mount.
     // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate persisted deck
     setState(loadSession(sessionKey, cardIds));
+    setHydratedKey(sessionKey);
     setFlipped(false);
   }, [sessionKey, cardIds]);
 
   useEffect(() => {
-    if (state) saveSession(sessionKey, state);
-  }, [sessionKey, state]);
+    if (state && hydratedKey === sessionKey) saveSession(sessionKey, state);
+  }, [sessionKey, state, hydratedKey]);
 
-  const entry = state ? currentEntry(state) : undefined;
+  const ready = hydratedKey === sessionKey && state !== null;
+  const entry = ready ? currentEntry(state) : undefined;
   const card: StatCard | undefined = entry
     ? (filtered.find((item) => item.id === entry.cardId) ??
       set.cards.find((item) => item.id === entry.cardId))
@@ -115,7 +118,7 @@ export function StudySession({ set }: StudySessionProps) {
           <h1>{set.title}</h1>
         </div>
         <p className="study-count">
-          {state ? state.index + 1 : 0}
+          {ready ? state.index + 1 : 0}
           <span aria-hidden="true"> · </span>
           {unseen} unseen
         </p>
@@ -164,7 +167,7 @@ export function StudySession({ set }: StudySessionProps) {
           type="button"
           className="control-btn"
           onClick={back}
-          disabled={!state || state.index === 0}
+          disabled={!ready || state.index === 0}
         >
           Back
         </button>
