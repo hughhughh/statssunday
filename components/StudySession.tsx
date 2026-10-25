@@ -22,8 +22,6 @@ export function StudySession({ set }: StudySessionProps) {
   const [showSection, setShowSection] = useState(false);
   const [flipped, setFlipped] = useState(false);
   const [state, setState] = useState<DeckState | null>(null);
-  const [sessionKey, setSessionKey] = useState(`${set.slug}:${categories[0] ?? "All"}`);
-  const [hydrated, setHydrated] = useState(false);
 
   const filtered = useMemo(
     () =>
@@ -33,23 +31,18 @@ export function StudySession({ set }: StudySessionProps) {
     [category, set.cards],
   );
   const cardIds = useMemo(() => filtered.map((card) => card.id), [filtered]);
-  const nextSessionKey = `${set.slug}:${category}`;
-
-  if (typeof window !== "undefined" && !hydrated) {
-    setHydrated(true);
-    setState(loadSession(nextSessionKey, cardIds));
-    setSessionKey(nextSessionKey);
-  }
-
-  if (hydrated && nextSessionKey !== sessionKey) {
-    setSessionKey(nextSessionKey);
-    setState(loadSession(nextSessionKey, cardIds));
-    setFlipped(false);
-  }
+  const sessionKey = `${set.slug}:${category}`;
 
   useEffect(() => {
-    if (hydrated && state) saveSession(sessionKey, state);
-  }, [hydrated, sessionKey, state]);
+    // localStorage is the source of truth for ratings/history after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate persisted deck
+    setState(loadSession(sessionKey, cardIds));
+    setFlipped(false);
+  }, [sessionKey, cardIds]);
+
+  useEffect(() => {
+    if (state) saveSession(sessionKey, state);
+  }, [sessionKey, state]);
 
   const entry = state ? currentEntry(state) : undefined;
   const card: StatCard | undefined = entry
@@ -107,7 +100,7 @@ export function StudySession({ set }: StudySessionProps) {
 
   function resetProgress() {
     clearSessions();
-    setState(loadSession(nextSessionKey, cardIds));
+    setState(loadSession(sessionKey, cardIds));
     setFlipped(false);
   }
 
